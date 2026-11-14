@@ -1,0 +1,5 @@
+-r catalog-service/requirements.txt
+-r playback-service/requirements.txt
+-r playlists-service/requirements.txt
+-r subscription-service/requirements.txt
+pytest>=8,<10
