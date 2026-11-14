@@ -12,31 +12,31 @@
 
 ```mermaid
 flowchart TD
-    Client(["Клиент / Frontend / Мобильное приложение"])
+    Client["Клиент / Frontend / Мобильное приложение"]
 
     subgraph Gateway ["Входной шлюз"]
-        APIGW["API Gateway (Nginx Reverse Proxy)<br/>Порт: 8080 (Внешний) -> 80 (Внутренний)<br/>CORS, Префлайт OPTIONS, Маршрутизация"]
+        APIGW["API Gateway (Nginx Reverse Proxy)<br/>Порт 8080 (Внешний) в 80 (Внутренний)<br/>CORS, Префлайт OPTIONS, Маршрутизация"]
     end
 
-    Client -->|HTTP / REST (JWT)| APIGW
+    Client -->|"HTTP / REST (JWT)"| APIGW
 
     subgraph CoreServices ["Микросервисы платформы"]
         direction TB
 
-        Users["Users Service (:8001)<br/>Аутентификация & JWT<br/><i>(Трисветов Р. В.)</i>"]
-        Favorites["Favorites Service (:8002)<br/>Избранные треки и плейлисты<br/><i>(Трисветов Р. В.)</i>"]
-        Catalog["Catalog Service (:8003)<br/>Каталог, модерация, события<br/><i>(Скворцов М. А.)</i>"]
-        Playlists["Playlists Service (:8004)<br/>Управление плейлистами<br/><i>(Юсубов Р. Х.)</i>"]
-        Subscription["Subscription Service (:8005)<br/>Жизненный цикл подписок<br/><i>(Юсубов Р. Х.)</i>"]
-        Playback["Playback Service (:8006)<br/>Плеер, очередь, история<br/><i>(Скворцов М. А.)</i>"]
+        Users["Users Service (:8001)<br/>Аутентификация и JWT<br/>(Трисветов Р. В.)"]
+        Favorites["Favorites Service (:8002)<br/>Избранные треки и плейлисты<br/>(Трисветов Р. В.)"]
+        Catalog["Catalog Service (:8003)<br/>Каталог, модерация, события<br/>(Скворцов М. А.)"]
+        Playlists["Playlists Service (:8004)<br/>Управление плейлистами<br/>(Юсубов Р. Х.)"]
+        Subscription["Subscription Service (:8005)<br/>Жизненный цикл подписок<br/>(Юсубов Р. Х.)"]
+        Playback["Playback Service (:8006)<br/>Плеер, очередь, история<br/>(Скворцов М. А.)"]
     end
 
-    APIGW -->|/api/v1/auth/*| Users
-    APIGW -->|/api/v1/favorites/*| Favorites
-    APIGW -->|/api/v1/tracks, /api/v1/albums| Catalog
-    APIGW -->|/api/v1/playlists/*| Playlists
-    APIGW -->|/api/v1/subscriptions/*| Subscription
-    APIGW -->|/api/v1/playback/*| Playback
+    APIGW -->|"/api/v1/auth/*"| Users
+    APIGW -->|"/api/v1/favorites/*"| Favorites
+    APIGW -->|"/api/v1/tracks, /api/v1/albums"| Catalog
+    APIGW -->|"/api/v1/playlists/*"| Playlists
+    APIGW -->|"/api/v1/subscriptions/*"| Subscription
+    APIGW -->|"/api/v1/playback/*"| Playback
 
     subgraph DataStorage ["Хранилища данных"]
         PG[("PostgreSQL 16<br/>users_db (:5433)")]
@@ -47,7 +47,7 @@ flowchart TD
         SQLitePb[("SQLite Volume<br/>playback.sqlite3")]
     end
 
-    Users -->|SQLAlchemy| PG
+    Users -->|"SQLAlchemy"| PG
     Favorites --> SQLiteFav
     Catalog --> SQLiteCat
     Playlists --> SQLitePl
