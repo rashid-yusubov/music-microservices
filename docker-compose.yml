@@ -1,0 +1,168 @@
+services:
+  api-gateway:
+    image: nginx:alpine
+    container_name: music-api-gateway
+    ports:
+      - "8080:80"
+    volumes:
+      - ./gateway/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - users-service
+      - favorites-service
+      - catalog-service
+      - playlists-service
+      - subscription-service
+      - playback-service
+    restart: unless-stopped
+    networks:
+      - music-network
+
+  postgres:
+    image: postgres:16
+    container_name: music-postgres
+    environment:
+      POSTGRES_USER: music_user
+      POSTGRES_PASSWORD: music_password
+      POSTGRES_DB: music_db
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U music_user -d music_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - music-network
+
+  users-service:
+    build: ./users-service
+    ports:
+      - "8001:8001"
+    environment:
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:?Задайте JWT_SECRET_KEY в .env}
+      DATABASE_URL: postgresql+psycopg2://music_user:music_password@postgres:5432/music_db
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - music-network
+
+  favorites-service:
+    build: ./favorites-service
+    ports:
+      - "8002:8002"
+    environment:
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:?Задайте JWT_SECRET_KEY в .env}
+      CATALOG_URL: ${CATALOG_URL:-http://catalog-service:8003}
+      PLAYLISTS_URL: ${PLAYLISTS_URL:-http://playlists-service:8004}
+      FAVORITES_DB_PATH: /data/favorites.sqlite3
+    depends_on:
+      users-service:
+        condition: service_started
+      catalog-service:
+        condition: service_started
+      playlists-service:
+        condition: service_started
+    volumes:
+      - favorites_data:/data
+    networks:
+      - music-network
+
+  rabbitmq:
+    image: rabbitmq:4.1-management
+    ports:
+      - "127.0.0.1:15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - music-network
+
+  catalog-service:
+    build: ./catalog-service
+    ports:
+      - "8003:8003"
+    environment:
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:?Задайте JWT_SECRET_KEY в .env}
+      CATALOG_DB_PATH: /data/catalog.sqlite3
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/%2F
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    volumes:
+      - catalog_data:/data
+    networks:
+      - music-network
+
+  playback-service:
+    build: ./playback-service
+    ports:
+      - "8006:8006"
+    environment:
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:?Задайте JWT_SECRET_KEY в .env}
+      PLAYBACK_DB_PATH: /data/playback.sqlite3
+      CATALOG_URL: http://catalog-service:8003
+      SUBSCRIPTION_URL: ${SUBSCRIPTION_URL:-http://subscription-service:8005}
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/%2F
+      HTTP_TIMEOUT_SECONDS: "3"
+      CONSUME_EVENTS: "true"
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      catalog-service:
+        condition: service_started
+      subscription-service:
+        condition: service_started
+    volumes:
+      - playback_data:/data
+    networks:
+      - music-network
+
+  playlists-service:
+    build: ./playlists-service
+    ports:
+      - "8004:8004"
+    environment:
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:?Задайте JWT_SECRET_KEY в .env}
+      PLAYLISTS_DB_PATH: /data/playlists.sqlite3
+      CATALOG_URL: ${CATALOG_URL:-http://catalog-service:8003}
+      HTTP_TIMEOUT_SECONDS: "3"
+    depends_on:
+      catalog-service:
+        condition: service_started
+    volumes:
+      - playlists_data:/data
+    networks:
+      - music-network
+
+  subscription-service:
+    build: ./subscription-service
+    ports:
+      - "8005:8005"
+    environment:
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:?Задайте JWT_SECRET_KEY в .env}
+      SUBSCRIPTION_DB_PATH: /data/subscription.sqlite3
+    volumes:
+      - subscription_data:/data
+    networks:
+      - music-network
+
+volumes:
+  rabbitmq_data:
+  postgres_data:
+  catalog_data:
+  playback_data:
+  playlists_data:
+  subscription_data:
+  favorites_data:
+
+networks:
+  music-network:
+    name: music-network
